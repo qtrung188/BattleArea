@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using BattleArenaBackendAPI.DTOs;
 using BattleArenaBackendAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -6,7 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace BattleArenaBackendAPI.Controllers
 {
     [ApiController]
-    [Route("api/shop")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/shop")]
     public class ShopController : ControllerBase
     {
         private readonly IShopService _shopService;
@@ -17,9 +19,9 @@ namespace BattleArenaBackendAPI.Controllers
         }
 
         [HttpGet("items")]
-        public async Task<ActionResult<List<ItemDto>>> GetItems()
+        public async Task<ActionResult<PagedResult<ItemDto>>> GetItems([FromQuery] PagedRequest request)
         {
-            var items = await _shopService.GetItemsAsync();
+            var items = await _shopService.GetItemsAsync(request);
             return Ok(items);
         }
 
@@ -33,16 +35,8 @@ namespace BattleArenaBackendAPI.Controllers
                 return Unauthorized();
             }
 
-            var (outcome, response) = await _shopService.BuyAsync(userId.Value, request.ItemId, request.Quantity);
-
-            return outcome switch
-            {
-                BuyOutcome.Success => Ok(response),
-                BuyOutcome.ItemNotFound => NotFound(new { message = "Item not found." }),
-                BuyOutcome.UserNotFound => Unauthorized(new { message = "User not found." }),
-                BuyOutcome.InsufficientGold => BadRequest(new { message = "Not enough gold." }),
-                _ => StatusCode(StatusCodes.Status500InternalServerError)
-            };
+            var response = await _shopService.BuyAsync(userId.Value, request.ItemId, request.Quantity);
+            return Ok(response);
         }
     }
 }

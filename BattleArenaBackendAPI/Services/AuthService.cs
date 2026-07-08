@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using BattleArenaBackendAPI.Data;
+using BattleArenaBackendAPI.Exceptions;
 using BattleArenaBackendAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -19,12 +20,12 @@ namespace BattleArenaBackendAPI.Services
             _config = config;
         }
 
-        public async Task<(RegisterResult Result, User? User)> RegisterAsync(string username, string password)
+        public async Task<User> RegisterAsync(string username, string password)
         {
             var exists = await _db.Users.AnyAsync(u => u.Username == username);
             if (exists)
             {
-                return (RegisterResult.UsernameTaken, null);
+                throw new ConflictException("Username is already taken.");
             }
 
             var user = new User
@@ -39,20 +40,18 @@ namespace BattleArenaBackendAPI.Services
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
-            return (RegisterResult.Success, user);
+            return user;
         }
 
-        public async Task<string?> LoginAsync(string username, string password)
+        public async Task<string> LoginAsync(string username, string password)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
-            if (user is null)
-            {
-                return null;
-            }
 
-            if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+            // Whether the username is unknown or the password is wrong, surface the
+            // exact same error so a client cannot probe which usernames exist.
+            if (user is null || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
             {
-                return null;
+                throw new BadRequestException("Invalid username or password.");
             }
 
             return GenerateToken(user);

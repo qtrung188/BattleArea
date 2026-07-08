@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using BattleArenaBackendAPI.DTOs;
 using BattleArenaBackendAPI.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -5,7 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace BattleArenaBackendAPI.Controllers
 {
     [ApiController]
-    [Route("api/auth")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/auth")]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
@@ -18,17 +20,12 @@ namespace BattleArenaBackendAPI.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            var (result, user) = await _authService.RegisterAsync(request.Username, request.Password);
-
-            if (result == RegisterResult.UsernameTaken)
-            {
-                return Conflict(new { message = "Username is already taken." });
-            }
+            var user = await _authService.RegisterAsync(request.Username, request.Password);
 
             // 201 Created
             return StatusCode(StatusCodes.Status201Created, new
             {
-                id = user!.Id,
+                id = user.Id,
                 username = user.Username,
                 gold = user.Gold,
                 createdAt = user.CreatedAt
@@ -39,12 +36,6 @@ namespace BattleArenaBackendAPI.Controllers
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             var token = await _authService.LoginAsync(request.Username, request.Password);
-
-            if (token is null)
-            {
-                return Unauthorized(new { message = "Invalid username or password." });
-            }
-
             return Ok(new LoginResponse { Token = token });
         }
     }

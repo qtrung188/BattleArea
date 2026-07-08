@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using BattleArenaBackendAPI.DTOs;
 using BattleArenaBackendAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -6,7 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace BattleArenaBackendAPI.Controllers
 {
     [ApiController]
-    [Route("api/leaderboard")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/leaderboard")]
     public class LeaderboardController : ControllerBase
     {
         private readonly ILeaderboardService _leaderboardService;

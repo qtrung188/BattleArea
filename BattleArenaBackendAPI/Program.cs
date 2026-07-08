@@ -1,6 +1,10 @@
 using System.Text;
+using Asp.Versioning;
+using Asp.Versioning.ApiExplorer;
+using BattleArenaBackendAPI.Configuration;
 using BattleArenaBackendAPI.Data;
 using BattleArenaBackendAPI.Hubs;
+using BattleArenaBackendAPI.Middleware;
 using BattleArenaBackendAPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -21,16 +25,33 @@ namespace BattleArenaBackendAPI
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
 
-            // Swagger with a JWT bearer security definition so the "Authorize"
-            // button appears in the Swagger UI.
-            builder.Services.AddSwaggerGen(options =>
-            {
-                options.SwaggerDoc("v1", new OpenApiInfo
+            // API versioning via URL segment (/api/v1/...). Defaults to 1.0 when
+            // the client omits the version.
+            builder.Services
+                .AddApiVersioning(options =>
                 {
-                    Title = "BattleArena Backend API",
-                    Version = "v1"
+                    options.DefaultApiVersion = new ApiVersion(1, 0);
+                    options.AssumeDefaultVersionWhenUnspecified = true;
+                    options.ReportApiVersions = true;
+                    options.ApiVersionReader = new UrlSegmentApiVersionReader();
+                })
+                .AddApiExplorer(options =>
+                {
+                    // Produces group names like "v1", "v2" for Swagger.
+                    options.GroupNameFormat = "'v'VVV";
+                    options.SubstituteApiVersionInUrl = true;
                 });
 
+            // Centralized exception handling -> RFC 7807 ProblemDetails responses.
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+            builder.Services.AddProblemDetails();
+
+            // Swagger with a JWT bearer security definition so the "Authorize"
+            // button appears in the Swagger UI. The per-version SwaggerDoc entries
+            // are supplied by ConfigureSwaggerOptions (driven by the API explorer).
+            builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
+            builder.Services.AddSwaggerGen(options =>
+            {
                 var scheme = new OpenApiSecurityScheme
                 {
                     Name = "Authorization",
@@ -118,10 +139,25 @@ namespace BattleArenaBackendAPI
 
             // ---- Middleware pipeline ----------------------------------------
 
+            // Placed first so it wraps the entire downstream pipeline (routing,
+            // auth, controllers, hubs) and converts any unhandled exception into
+            // a standardized ProblemDetails response.
+            app.UseExceptionHandler();
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
-                app.UseSwaggerUI();
+                app.UseSwaggerUI(options =>
+                {
+                    // One Swagger endpoint per discovered API version.
+                    var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
+                    foreach (var description in provider.ApiVersionDescriptions)
+                    {
+                        options.SwaggerEndpoint(
+                            $"/swagger/{description.GroupName}/swagger.json",
+                            description.GroupName.ToUpperInvariant());
+                    }
+                });
             }
 
             app.UseHttpsRedirection();

@@ -1,5 +1,6 @@
 using BattleArenaBackendAPI.Data;
 using BattleArenaBackendAPI.DTOs;
+using BattleArenaBackendAPI.Exceptions;
 using BattleArenaBackendAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,10 +15,17 @@ namespace BattleArenaBackendAPI.Services
             _db = db;
         }
 
-        public async Task<List<ItemDto>> GetItemsAsync()
+        public async Task<PagedResult<ItemDto>> GetItemsAsync(PagedRequest request)
         {
-            return await _db.Items
-                .OrderBy(i => i.Id)
+            request.Validate();
+
+            var query = _db.Items.OrderBy(i => i.Id);
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
                 .Select(i => new ItemDto
                 {
                     Id = i.Id,
@@ -26,13 +34,23 @@ namespace BattleArenaBackendAPI.Services
                     Type = i.Type
                 })
                 .ToListAsync();
+
+            return new PagedResult<ItemDto>(items, totalCount, request.Page, request.PageSize);
         }
 
-        public async Task<List<InventoryItemDto>> GetInventoryAsync(Guid userId)
+        public async Task<PagedResult<InventoryItemDto>> GetInventoryAsync(Guid userId, PagedRequest request)
         {
-            return await _db.UserInventories
+            request.Validate();
+
+            var query = _db.UserInventories
                 .Where(ui => ui.UserId == userId)
-                .OrderBy(ui => ui.ItemId)
+                .OrderBy(ui => ui.ItemId);
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
                 .Select(ui => new InventoryItemDto
                 {
                     ItemId = ui.ItemId,
@@ -42,9 +60,11 @@ namespace BattleArenaBackendAPI.Services
                     IsEquipped = ui.IsEquipped
                 })
                 .ToListAsync();
+
+            return new PagedResult<InventoryItemDto>(items, totalCount, request.Page, request.PageSize);
         }
 
-        public async Task<(BuyOutcome Outcome, BuyResponse? Response)> BuyAsync(Guid userId, int itemId, int quantity)
+        public async Task<BuyResponse> BuyAsync(Guid userId, int itemId, int quantity)
         {
             if (quantity < 1)
             {
@@ -59,19 +79,19 @@ namespace BattleArenaBackendAPI.Services
                 var item = await _db.Items.FirstOrDefaultAsync(i => i.Id == itemId);
                 if (item is null)
                 {
-                    return (BuyOutcome.ItemNotFound, null);
+                    throw new NotFoundException($"Item {itemId} was not found.");
                 }
 
                 var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
                 if (user is null)
                 {
-                    return (BuyOutcome.UserNotFound, null);
+                    throw new NotFoundException("User was not found.");
                 }
 
                 var totalCost = item.Price * quantity;
                 if (user.Gold < totalCost)
                 {
-                    return (BuyOutcome.InsufficientGold, null);
+                    throw new ConflictException("Not enough gold to complete this purchase.");
                 }
 
                 // 1) Deduct gold.
@@ -101,7 +121,7 @@ namespace BattleArenaBackendAPI.Services
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return (BuyOutcome.Success, new BuyResponse
+                return new BuyResponse
                 {
                     ItemId = item.Id,
                     ItemName = item.Name,
@@ -109,10 +129,13 @@ namespace BattleArenaBackendAPI.Services
                     TotalCost = totalCost,
                     RemainingGold = user.Gold,
                     QuantityOwned = inventory.Quantity
-                });
+                };
             }
             catch
             {
+                // Roll back on any failure — whether a business exception (item
+                // not found / insufficient gold) or an unexpected one — then let
+                // it bubble up to the global handler.
                 await transaction.RollbackAsync();
                 throw;
             }

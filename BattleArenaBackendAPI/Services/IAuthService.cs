@@ -2,23 +2,19 @@ using BattleArenaBackendAPI.Models;
 
 namespace BattleArenaBackendAPI.Services
 {
-    public enum RegisterResult
-    {
-        Success,
-        UsernameTaken
-    }
-
     public interface IAuthService
     {
         /// <summary>
-        /// Registers a new user. Returns (UsernameTaken, null) if the username already exists.
+        /// Registers a new user. Throws <see cref="Exceptions.ConflictException"/>
+        /// if the username is already taken.
         /// </summary>
-        Task<(RegisterResult Result, User? User)> RegisterAsync(string username, string password);
+        Task<User> RegisterAsync(string username, string password);
 
         /// <summary>
-        /// Validates credentials and returns a signed JWT, or null if authentication fails.
+        /// Validates credentials and returns a signed JWT. Throws
+        /// <see cref="Exceptions.BadRequestException"/> if authentication fails.
         /// </summary>
-        Task<string?> LoginAsync(string username, string password);
+        Task<string> LoginAsync(string username, string password);
 
         /// <summary>
         /// Generates a signed JWT for an already-authenticated user.

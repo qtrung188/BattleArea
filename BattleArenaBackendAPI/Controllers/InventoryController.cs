@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using BattleArenaBackendAPI.DTOs;
 using BattleArenaBackendAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -6,7 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace BattleArenaBackendAPI.Controllers
 {
     [ApiController]
-    [Route("api/inventory")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/inventory")]
     [Authorize]
     public class InventoryController : ControllerBase
     {
@@ -18,7 +20,7 @@ namespace BattleArenaBackendAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<InventoryItemDto>>> GetInventory()
+        public async Task<ActionResult<PagedResult<InventoryItemDto>>> GetInventory([FromQuery] PagedRequest request)
         {
             var userId = User.GetUserId();
             if (userId is null)
@@ -26,7 +28,7 @@ namespace BattleArenaBackendAPI.Controllers
                 return Unauthorized();
             }
 
-            var items = await _shopService.GetInventoryAsync(userId.Value);
+            var items = await _shopService.GetInventoryAsync(userId.Value, request);
             return Ok(items);
         }
     }
