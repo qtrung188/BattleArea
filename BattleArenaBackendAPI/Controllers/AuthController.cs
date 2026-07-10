@@ -35,8 +35,22 @@ namespace BattleArenaBackendAPI.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var token = await _authService.LoginAsync(request.Username, request.Password);
-            return Ok(new LoginResponse { Token = token });
+            var (accessToken, refreshToken) = await _authService.LoginAsync(request.Username, request.Password);
+            return Ok(new LoginResponse { AccessToken = accessToken, RefreshToken = refreshToken });
+        }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
+        {
+            var newAccessToken = await _authService.RefreshAccessTokenAsync(request.RefreshToken);
+            return Ok(new { AccessToken = newAccessToken });
+        }
+
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request)
+        {
+            await _authService.RevokeRefreshTokenAsync(request.RefreshToken);
+            return NoContent();
         }
     }
 }

@@ -1,3 +1,4 @@
+using BattleArenaBackendAPI.Migrations;
 using BattleArenaBackendAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +12,7 @@ namespace BattleArenaBackendAPI.Data
 
         public DbSet<User> Users => Set<User>();
         public DbSet<Item> Items => Set<Item>();
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         public DbSet<UserInventory> UserInventories => Set<UserInventory>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

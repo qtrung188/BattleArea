@@ -14,11 +14,10 @@ namespace BattleArenaBackendAPI.Services
         /// Validates credentials and returns a signed JWT. Throws
         /// <see cref="Exceptions.BadRequestException"/> if authentication fails.
         /// </summary>
-        Task<string> LoginAsync(string username, string password);
+        Task<(string AccessToken, string RefreshToken)> LoginAsync(string username, string password);
 
-        /// <summary>
-        /// Generates a signed JWT for an already-authenticated user.
-        /// </summary>
-        string GenerateToken(User user);
+        Task<string> RefreshAccessTokenAsync(string refreshTokenPlain);
+
+        Task RevokeRefreshTokenAsync(string refreshTokenPlain);
     }
 }

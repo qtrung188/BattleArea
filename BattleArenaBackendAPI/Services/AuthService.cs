@@ -1,4 +1,4 @@
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using BattleArenaBackendAPI.Data;
@@ -43,7 +43,7 @@ namespace BattleArenaBackendAPI.Services
             return user;
         }
 
-        public async Task<string> LoginAsync(string username, string password)
+        public async Task<(string AccessToken, string RefreshToken)> LoginAsync(string username, string password)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
 
@@ -54,10 +54,10 @@ namespace BattleArenaBackendAPI.Services
                 throw new BadRequestException("Invalid username or password.");
             }
 
-            return GenerateToken(user);
+            return await IssueTokenAsync(user);
         }
 
-        public string GenerateToken(User user)
+        private string GenerateToken(User user)
         {
             var jwt = _config.GetSection("Jwt");
             var secret = jwt["Secret"]
@@ -85,6 +85,73 @@ namespace BattleArenaBackendAPI.Services
                 signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        private async Task<(string AccessToken, string RefreshToken)> IssueTokenAsync(User user)
+        {
+            var accessToken = GenerateToken(user);
+
+            var refreshTokenPlain = GenerateSecureToken();
+            var refreshToken = new RefreshToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                TokenHash = HashToken(refreshTokenPlain),
+                ExpiresAt = DateTime.UtcNow.AddDays(7),
+                IsRevoked = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _db.RefreshTokens.Add(refreshToken);
+            await _db.SaveChangesAsync();
+
+            // Trả về bản PLAIN (chưa hash) cho client — DB chỉ lưu bản hash
+            return (accessToken, refreshTokenPlain);
+        }
+
+        public async Task<string> RefreshAccessTokenAsync(string refreshTokenPlain)
+        {
+            var hashedInput = HashToken(refreshTokenPlain);
+
+            var storedToken = await _db.RefreshTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t => t.TokenHash == hashedInput);
+
+            if (storedToken is null || storedToken.IsRevoked || storedToken.ExpiresAt < DateTime.UtcNow)
+                throw new BadRequestException("Refresh token không hợp lệ hoặc đã hết hạn");
+
+            return GenerateToken(storedToken.User);
+        }
+
+        public async Task RevokeRefreshTokenAsync(string refreshTokenPlain)
+        {
+            var hashedInput = HashToken(refreshTokenPlain);
+            var storedToken = await _db.RefreshTokens
+                .FirstOrDefaultAsync(t => t.TokenHash == hashedInput);
+
+            if (storedToken is not null)
+            {
+                storedToken.IsRevoked = true;
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        // Sinh ra chuỗi ngẫu nhiên an toàn để làm refresh token — 
+        // dùng RandomNumberGenerator (cryptographically secure), 
+        // KHÔNG dùng Random thường vì Random có thể bị đoán ra pattern.
+        private string GenerateSecureToken()
+        {
+            var randomBytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(64);
+            return Convert.ToBase64String(randomBytes);
+        }
+
+        // Hash token trước khi lưu DB — dùng SHA256 là đủ ở đây (khác với password phải dùng BCrypt) vì token đã ngẫu nhiên/độ dài lớn sẵn, 
+        // không sợ brute-force dictionary attack như password người dùng tự đặt.
+        private string HashToken(string token)
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(token);
+            var hash = System.Security.Cryptography.SHA256.HashData(bytes);
+            return Convert.ToBase64String(hash);
         }
     }
 }
