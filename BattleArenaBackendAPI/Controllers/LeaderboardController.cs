@@ -12,10 +12,12 @@ namespace BattleArenaBackendAPI.Controllers
     public class LeaderboardController : ControllerBase
     {
         private readonly ILeaderboardService _leaderboardService;
+        private readonly IMatchService _matchService;
 
-        public LeaderboardController(ILeaderboardService leaderboardService)
+        public LeaderboardController(ILeaderboardService leaderboardService, IMatchService matchService)
         {
             _leaderboardService = leaderboardService;
+            _matchService = matchService;
         }
 
         [Authorize]
@@ -28,8 +30,10 @@ namespace BattleArenaBackendAPI.Controllers
                 return Unauthorized();
             }
 
-            await _leaderboardService.SubmitScoreAsync(userId.Value, request.Score);
-            return Ok(new { message = "Score submitted.", score = request.Score });
+            // Using MatchService for validation and SQL saving instead of direct LeaderboardService call
+            // Cast double to int as IMatchService SubmitScoreAsync expects an int score
+            await _matchService.SubmitScoreAsync(userId.Value, request.MatchId, (int)request.Score);
+            return NoContent();
         }
 
         [HttpGet("top")]

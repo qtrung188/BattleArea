@@ -4,6 +4,8 @@ namespace BattleArenaBackendAPI.DTOs
 {
     public class SubmitScoreRequest
     {
+        public Guid MatchId { get; set; }
+
         [Range(0, double.MaxValue)]
         public double Score { get; set; }
     }

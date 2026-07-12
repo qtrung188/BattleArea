@@ -90,6 +90,7 @@ namespace BattleArenaBackendAPI
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IShopService, ShopService>();
             builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
+            builder.Services.AddScoped<IMatchService, MatchService>();
 
             // JWT authentication
             var jwtSection = builder.Configuration.GetSection("Jwt");

@@ -14,8 +14,8 @@ namespace BattleArenaBackendAPI.Data
         public DbSet<Item> Items => Set<Item>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         public DbSet<PurchaseHistory> PurchaseHistories => Set<PurchaseHistory>();
+        public DbSet<Match> Matches => Set<Match>();
         public DbSet<UserInventory> UserInventories => Set<UserInventory>();
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -146,6 +146,18 @@ namespace BattleArenaBackendAPI.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
+            modelBuilder.Entity<Match>(entity =>
+            {
+                entity.HasKey(m => m.Id);
+                entity.Property(m => m.Score).IsRequired();
+                entity.ToTable(t => t.HasCheckConstraint("CK_Match_Score_NonNegative", "\"Score\" >= 0"));
+                entity.Property(m => m.StartedAt).IsRequired();
+                entity.Property(m => m.IsValidated).HasDefaultValue(false);
+                entity.HasOne(m => m.User)
+                    .WithMany()
+                    .HasForeignKey(m => m.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }
