@@ -13,6 +13,7 @@ namespace BattleArenaBackendAPI.Data
         public DbSet<User> Users => Set<User>();
         public DbSet<Item> Items => Set<Item>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+        public DbSet<PurchaseHistory> PurchaseHistories => Set<PurchaseHistory>();
         public DbSet<UserInventory> UserInventories => Set<UserInventory>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -90,6 +91,61 @@ namespace BattleArenaBackendAPI.Data
                 entity.HasIndex(ui => new { ui.UserId, ui.ItemId })
                     .IsUnique();
             });
+
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.HasKey(rt => rt.Id);
+
+                entity.Property(rt => rt.TokenHash)
+                    .IsRequired()
+                    .HasMaxLength(255);
+
+                entity.HasIndex(rt => rt.TokenHash)
+                    .IsUnique();
+
+                entity.Property(rt => rt.ExpiresAt)
+                    .IsRequired();
+
+                entity.Property(rt => rt.IsRevoked)
+                    .HasDefaultValue(false);
+
+                entity.Property(rt => rt.CreatedAt)
+                    .IsRequired();
+
+                entity.HasOne(rt => rt.User)
+                    .WithMany()
+                    .HasForeignKey(rt => rt.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+
+            modelBuilder.Entity<PurchaseHistory>(entity =>
+            {
+                entity.HasKey(ph => ph.Id);
+
+                entity.Property(ph => ph.Quantity)
+                    .IsRequired();
+
+                entity.ToTable(t => t.HasCheckConstraint(
+                    "CK_PurchaseHistory_Quantity_Positive", "\"Quantity\" > 0"));
+
+                entity.Property(ph => ph.TotalPrice)
+                    .IsRequired();
+
+                entity.Property(ph => ph.CreatedAt)
+                    .IsRequired();
+
+                entity.HasOne(ph => ph.User)
+                    .WithMany()
+                    .HasForeignKey(ph => ph.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ph => ph.Item)
+                    .WithMany()
+                    .HasForeignKey(ph => ph.ItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
         }
     }
 }

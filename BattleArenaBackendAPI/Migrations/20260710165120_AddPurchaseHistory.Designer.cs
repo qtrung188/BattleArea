@@ -3,6 +3,7 @@ using System;
 using BattleArenaBackendAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BattleArenaBackendAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260710165120_AddPurchaseHistory")]
+    partial class AddPurchaseHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -78,10 +81,7 @@ namespace BattleArenaBackendAPI.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("PurchaseHistories", t =>
-                        {
-                            t.HasCheckConstraint("CK_PurchaseHistory_Quantity_Positive", "\"Quantity\" > 0");
-                        });
+                    b.ToTable("PurchaseHistories");
                 });
 
             modelBuilder.Entity("BattleArenaBackendAPI.Models.RefreshToken", b =>
@@ -97,22 +97,16 @@ namespace BattleArenaBackendAPI.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsRevoked")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("text");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
 
                     b.HasIndex("UserId");
 
@@ -190,7 +184,7 @@ namespace BattleArenaBackendAPI.Migrations
                     b.HasOne("BattleArenaBackendAPI.Models.Item", "Item")
                         .WithMany()
                         .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("BattleArenaBackendAPI.Models.User", "User")
