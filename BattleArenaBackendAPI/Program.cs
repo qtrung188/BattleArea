@@ -83,8 +83,12 @@ namespace BattleArenaBackendAPI
             builder.Services.AddSingleton<IConnectionMultiplexer>(
                 ConnectionMultiplexer.Connect(redisConnection));
 
-            // SignalR
-            builder.Services.AddSignalR();
+            // SignalR + Redis Backplane (sync messages across multiple instances)
+            builder.Services.AddSignalR()
+                .AddStackExchangeRedis(redisConnection, options =>
+                {
+                    options.Configuration.ChannelPrefix = RedisChannel.Literal("BattleArenaBackendAPI");
+                });
 
             // Application services
             builder.Services.AddScoped<IAuthService, AuthService>();
@@ -162,6 +166,10 @@ namespace BattleArenaBackendAPI
             }
 
             app.UseHttpsRedirection();
+
+            // Serve static files from wwwroot; UseDefaultFiles maps "/" -> index.html.
+            app.UseDefaultFiles();
+            app.UseStaticFiles();
 
             app.UseAuthentication();
             app.UseAuthorization();

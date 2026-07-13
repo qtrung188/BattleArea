@@ -1,13 +1,11 @@
-using Asp.Versioning;
-using BattleArenaBackendAPI.Services;
+﻿using BattleArenaBackendAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BattleArenaBackendAPI.Controllers
 {
+    [Route("api/v1/[controller]")]
     [ApiController]
-    [ApiVersion("1.0")]
-    [Route("api/v{version:apiVersion}/matches")]
     [Authorize]
     public class MatchController : ControllerBase
     {
@@ -21,9 +19,8 @@ namespace BattleArenaBackendAPI.Controllers
         [HttpPost("start")]
         public async Task<IActionResult> StartMatch()
         {
-            // Extension method from ClaimsPrincipalExtensions
-            var userId = User.GetUserId(); 
-            if (userId == null)
+            var userId = User.GetUserId();
+            if(userId == null)
             {
                 return Unauthorized();
             }

@@ -7,7 +7,7 @@
         public User User { get; set; } = null!;
         public int Score { get; set; }
         public DateTime StartedAt { get; set; }
-        public DateTime EndedAt { get; set; }
+        public DateTime? EndedAt { get; set; }
         public bool IsValidated { get; set; }
 
     }
