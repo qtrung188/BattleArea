@@ -31,7 +31,7 @@ A personal portfolio project simulating the backend for a game arena system — 
 - 📄 API versioning + reusable pagination
 - ⚠️ Centralized exception handling → RFC 7807 `ProblemDetails`
 
-Full explanation of each mechanism (with the "why") is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Full explanation of each mechanism (with the "why") is in [docs/ARCHITECTURE.md](docs/Architecture.md).
 
 ## API Overview
 
