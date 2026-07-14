@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BattleArenaBackendAPI.Controllers
 {
-    [Route("api/v1/[controller]")]
+    [Route("api/v1/matches")]
     [ApiController]
     [Authorize]
     public class MatchController : ControllerBase

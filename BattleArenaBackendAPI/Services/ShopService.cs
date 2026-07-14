@@ -118,6 +118,18 @@ namespace BattleArenaBackendAPI.Services
                     inventory.Quantity += quantity;
                 }
 
+                // 3) Audit log — recorded in the SAME transaction so it rolls back
+                // together with the gold/inventory changes (no "ghost" logs).
+                _db.PurchaseHistories.Add(new PurchaseHistory
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    ItemId = itemId,
+                    Quantity = quantity,
+                    TotalPrice = totalCost,   // snapshot of price at purchase time
+                    CreatedAt = DateTime.UtcNow
+                });
+
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 

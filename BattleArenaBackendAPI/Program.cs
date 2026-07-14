@@ -16,7 +16,7 @@ namespace BattleArenaBackendAPI
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -141,6 +141,13 @@ namespace BattleArenaBackendAPI
             builder.Services.AddAuthorization();
 
             var app = builder.Build();
+
+            // Seed dữ liệu mẫu (item shop) khi khởi động — idempotent.
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await DbSeeder.SeedAsync(db);
+            }
 
             // ---- Middleware pipeline ----------------------------------------
 

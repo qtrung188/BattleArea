@@ -1,239 +1,81 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>BattleArena API Demo</title>
-    <style>
-        body {
-            font-family: system-ui, sans-serif;
-            max-width: 700px;
-            margin: 40px auto;
-            padding: 0 16px;
-        }
-
-        section {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-
-        h2 {
-            margin-top: 0;
-            font-size: 16px;
-        }
-
-        input {
-            padding: 6px;
-            margin: 4px 4px 4px 0;
-        }
-
-        button {
-            padding: 6px 12px;
-            cursor: pointer;
-        }
-
-        #chatLog {
-            height: 150px;
-            overflow-y: auto;
-            background: #f5f5f5;
-            padding: 8px;
-            font-size: 13px;
-        }
-
-        .item-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        #status {
-            color: #666;
-            font-size: 13px;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BattleArena — Demo</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <h1>BattleArena — Demo</h1>
-    <p id="status">Chưa đăng nhập</p>
+    <div class="topbar">
+        <div>
+            <h1>⚔️ BattleArena</h1>
+            <p id="status">Chưacó đăng nhập</p>
+        </div>
+        <div class="gold">Gold: <span id="goldDisplay">—</span></div>
+    </div>
 
-    <section id="auth">
+    <section class="card" id="authSection">
         <h2>Đăng nhập / Đăng ký</h2>
-        <input id="username" placeholder="username">
-        <input id="password" type="password" placeholder="password">
-        <br>
-        <button onclick="register()">Đăng ký</button>
-        <button onclick="login()">Đăng nhập</button>
-        <button onclick="logout()">Đăng xuất</button>
+        <div class="row">
+            <input id="username" placeholder="username" autocomplete="username">
+            <input id="password" type="password" placeholder="password" autocomplete="current-password">
+        </div>
+        <div class="row" style="margin-top:8px">
+            <button id="btnRegister">Đăng ký</button>
+            <button id="btnLogin">Đăng nhập</button>
+            <button id="btnLogout">Đăng xuất</button>
+        </div>
     </section>
 
-    <section id="app" hidden>
-        <section>
+    <div id="appSection" hidden>
+        <section class="card">
             <h2>Shop</h2>
             <div id="shopList"></div>
-            <button onclick="loadShop()">Tải lại Shop</button>
+            <div class="pager" id="shopPager"></div>
+            <div class="row" style="margin-top:10px">
+                <button id="btnReloadShop">Tải lại Shop</button>
+            </div>
         </section>
 
-        <section>
+        <section class="card">
             <h2>Inventory</h2>
             <div id="inventoryList"></div>
-            <button onclick="loadInventory()">Tải lại Inventory</button>
+            <div class="pager" id="inventoryPager"></div>
+            <div class="row" style="margin-top:10px">
+                <button id="btnReloadInventory">Tải lại Inventory</button>
+            </div>
         </section>
 
-        <section>
-            <h2>Leaderboard</h2>
-            <button onclick="startMatch()">Bắt đầu trận đấu</button>
-            <div id="matchStatus"></div>
-            <input id="scoreInput" type="number" placeholder="Điểm số">
-            <button onclick="submitScore()">Nộp điểm</button>
-            <div id="leaderboardList"></div>
-            <button onclick="loadLeaderboard()">Tải lại Top 10</button>
+        <section class="card">
+            <h2>Match & Leaderboard</h2>
+            <div class="row">
+                <button id="btnStartMatch">Bắt đầu trận đấu</button>
+                <span id="matchStatus" class="muted"></span>
+            </div>
+            <div class="row" style="margin-top:8px">
+                <input id="scoreInput" type="number" placeholder="Điểm số" min="0">
+                <button id="btnSubmitScore">Nộp điểm</button>
+            </div>
+            <div id="leaderboardList" style="margin-top:12px"></div>
+            <div class="row" style="margin-top:10px">
+                <button id="btnReloadLeaderboard">Tải lại Top 10</button>
+            </div>
         </section>
 
-        <section>
+        <section class="card">
             <h2>Chat real-time</h2>
             <div id="chatLog"></div>
-            <input id="chatInput" placeholder="Nhập tin nhắn...">
-            <button onclick="sendMessage()">Gửi</button>
+            <div class="row">
+                <input id="chatInput" placeholder="Nhập tin nhắn..." style="flex:1">
+                <button id="btnSendChat">Gửi</button>
+            </div>
         </section>
-    </section>
+    </div>
+
+    <div id="toastContainer"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
-    <script>
-let accessToken = localStorage.getItem("accessToken");
-let refreshToken = localStorage.getItem("refreshToken");
-let currentMatchId = null;
-let hubConnection = null;
-
-// Hàm gọi API dùng chung — tự gắn Bearer token nếu cần
-async function api(path, method = "GET", body = null) {
-  const headers = { "Content-Type": "application/json" };
-  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
-
-  const res = await fetch(`/api/v1${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : null
-  });
-
-  if (res.status === 204) return null;
-  const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(data?.detail || `Lỗi ${res.status}`);
-  return data;
-}
-
-function updateStatus() {
-  document.getElementById("status").textContent = accessToken
-    ? "Đã đăng nhập" : "Chưa đăng nhập";
-  document.getElementById("app").hidden = !accessToken;
-}
-
-async function register() {
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
-  try {
-    await api("/auth/register", "POST", { username, password });
-    alert("Đăng ký thành công, giờ đăng nhập nhé");
-  } catch (e) { alert(e.message); }
-}
-
-async function login() {
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
-  try {
-    const data = await api("/auth/login", "POST", { username, password });
-    accessToken = data.accessToken;
-    refreshToken = data.refreshToken;
-    localStorage.setItem("accessToken", accessToken);
-    localStorage.setItem("refreshToken", refreshToken);
-    updateStatus();
-    loadShop();
-    loadInventory();
-    loadLeaderboard();
-    connectChat();
-  } catch (e) { alert(e.message); }
-}
-
-async function logout() {
-  try { await api("/auth/logout", "POST", { refreshToken }); } catch {}
-  accessToken = null; refreshToken = null;
-  localStorage.clear();
-  if (hubConnection) hubConnection.stop();
-  updateStatus();
-}
-
-async function loadShop() {
-  const data = await api("/shop/items?page=1&pageSize=20");
-  document.getElementById("shopList").innerHTML = data.items.map(i =>
-    `<div class="item-row">${i.name} — ${i.price} Gold
-     <button onclick="buyItem(${i.id})">Mua</button></div>`
-  ).join("");
-}
-
-async function buyItem(itemId) {
-  try {
-    const result = await api("/shop/buy", "POST", { itemId, quantity: 1 });
-    alert(`${result.message}. Gold còn lại: ${result.remainingGold}`);
-    loadInventory();
-  } catch (e) { alert(e.message); }
-}
-
-async function loadInventory() {
-  const data = await api("/inventory?page=1&pageSize=20");
-  document.getElementById("inventoryList").innerHTML = data.items.map(i =>
-    `<div class="item-row">${i.itemName} x${i.quantity}</div>`
-  ).join("");
-}
-
-async function startMatch() {
-  const data = await api("/matches/start", "POST");
-  currentMatchId = data.matchId;
-  document.getElementById("matchStatus").textContent = `Trận đấu bắt đầu: ${currentMatchId}`;
-}
-
-async function submitScore() {
-  if (!currentMatchId) { alert("Bấm 'Bắt đầu trận đấu' trước"); return; }
-  const score = parseInt(document.getElementById("scoreInput").value, 10);
-  try {
-    await api("/leaderboard/score", "POST", { matchId: currentMatchId, score });
-    alert("Nộp điểm thành công");
-    currentMatchId = null;
-    loadLeaderboard();
-  } catch (e) { alert(e.message); }
-}
-
-async function loadLeaderboard() {
-  const data = await api("/leaderboard/top");
-  document.getElementById("leaderboardList").innerHTML = data.map(r =>
-    `<div class="item-row">#${r.rank} ${r.username} — ${r.score} điểm</div>`
-  ).join("");
-}
-
-function connectChat() {
-  hubConnection = new signalR.HubConnectionBuilder()
-    .withUrl("/hub/global-chat", { accessTokenFactory: () => accessToken })
-    .withAutomaticReconnect()
-    .build();
-
-  hubConnection.on("ReceiveMessage", (username, message) => {
-    const log = document.getElementById("chatLog");
-    log.innerHTML += `<div><b>${username}:</b> ${message}</div>`;
-    log.scrollTop = log.scrollHeight;
-  });
-
-  hubConnection.start().catch(err => console.error("SignalR error:", err));
-}
-
-async function sendMessage() {
-  const input = document.getElementById("chatInput");
-  if (!hubConnection || hubConnection.state !== "Connected") return;
-  await hubConnection.invoke("SendMessage", input.value);
-  input.value = "";
-}
-
-updateStatus();
-if (accessToken) { loadShop(); loadInventory(); loadLeaderboard(); connectChat(); }
-    </script>
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

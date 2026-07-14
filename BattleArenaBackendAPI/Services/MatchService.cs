@@ -1,5 +1,7 @@
 ﻿using BattleArenaBackendAPI.Data;
 using BattleArenaBackendAPI.Exceptions;
+using BattleArenaBackendAPI.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace BattleArenaBackendAPI.Services
 {
@@ -16,14 +18,26 @@ namespace BattleArenaBackendAPI.Services
             _leaderboardService = leaderboardService;
         }
 
-        public Task<Guid> StartMatchAsync(Guid userId)
+        public async Task<Guid> StartMatchAsync(Guid userId)
         {
-            throw new NotImplementedException();
+            var match = new Match
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Score = 0,
+                StartedAt = DateTime.UtcNow,
+                IsValidated = false
+            };
+
+            _db.Matches.Add(match);
+            await _db.SaveChangesAsync();
+
+            return match.Id;
         }
 
         public async Task SubmitScoreAsync(Guid userId, Guid matchId, int score)
         {
-            var match = _db.Matches.FirstOrDefault(m => m.Id == matchId && m.UserId == userId);
+            var match = await _db.Matches.FirstOrDefaultAsync(m => m.Id == matchId && m.UserId == userId);
 
             if (match == null)
             {
@@ -58,10 +72,6 @@ namespace BattleArenaBackendAPI.Services
 
             await _db.SaveChangesAsync();
             await _leaderboardService.SubmitScoreAsync(userId, score);
-
-
-
-            throw new NotImplementedException();
         }
     }
 }
